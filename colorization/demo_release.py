@@ -43,6 +43,7 @@ img_bw = postprocess_tens(tens_l_orig, torch.cat((0*tens_l_orig,0*tens_l_orig),d
 out_img_eccv16 = postprocess_tens(tens_l_orig, colorizer_eccv16(tens_l_rs).cpu())
 # print("checkpoint 3b")
 
+print("my input is size", list(tens_l_rs.size()))
 model_output = colorizer_siggraph17(tens_l_rs).cpu()
 
 out_img_siggraph17 = postprocess_tens(tens_l_orig, model_output)

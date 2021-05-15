@@ -79,7 +79,7 @@ if __name__=="__main__":
 
     # Moving model to GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
+    model.cuda()
 
     print("checkpt 2")
 
@@ -102,25 +102,35 @@ if __name__=="__main__":
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
 
+            # print("input size after data", list(inputs.size()))
             # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
             inputs = torch.squeeze(inputs, 0)
-            labels = torch.squeeze(labels, 0)
+            labels = torch.squeeze(labels)
+            # print("input size after squeeze", list(inputs.size()))
+
 
             inputs = inputs.to(device)
-            inputs = labels.to(device)
+            # print("input size after moving", list(inputs.size()))
+            labels = labels.to(device, dtype=torch.long)
 
             # zero the parameter gradients
             optimizer.zero_grad()
+            # print("input size after opt", list(inputs.size()))
 
             # forward + backward + optimize
+
+            # print("my input is size", list(inputs.size()))
             outputs = model(inputs)
+            outputs = torch.squeeze(outputs, 0)
+            print("output size", list(outputs.size()))
+            print("label size", list(labels.size()))
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
             # print statistics
             running_loss += loss.item()
-            if i % 2000 == 1999:    # print every 2000 mini-batches
+            if i % 10 == 0:    # print every 2000 mini-batches
                 print('\t[%d, %5d] loss: %.3f' %
                     (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
