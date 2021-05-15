@@ -54,6 +54,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         img_l_orig, img_l_rs, img_ab_rs = preprocess_img(np.asarray(img), HW=(256,256), resample=Image.NEAREST, ade2k=True)
         mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
 
+
         # need to output 3 things (2 things for now)
         # 1. ade2k image bw resized
         # 2. ade2k mask resized, ignore for now
@@ -77,6 +78,7 @@ if __name__=="__main__":
     model_dir = "model_weights/"
     num_epochs = 10
     learning_rate = 0.001
+    batch = 16
 
     print("checkpt 1")
 
@@ -87,8 +89,8 @@ if __name__=="__main__":
     print("checkpt 2")
 
     # Dataset to dataloader
-    trainloader = torch.utils.data.DataLoader(train_dataset, pin_memory=True)
-    valloader = torch.utils.data.DataLoader(train_dataset, pin_memory=True)
+    trainloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
+    valloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
 
     print("checkpt 3")
 
@@ -103,40 +105,46 @@ if __name__=="__main__":
         running_loss = 0.0
         epoch_loss = 0.0
         epoch_path = model_dir + "epoch_" + str(epoch) + ".pt"
+        bad_file_indexes = []
         for i, data in enumerate(trainloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+            try:
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
 
-            # print("input size after data", list(inputs.size()))
-            # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-            inputs = torch.squeeze(inputs, 0)
-            labels = torch.squeeze(labels, 0)
-            # print("input size after squeeze", list(inputs.size()))
+                # print("input size after data", list(inputs.size()))
+                # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+                inputs = torch.squeeze(inputs, 1)
+                labels = torch.squeeze(labels, 1)
+                # print("input size after squeeze", list(inputs.size()))
 
 
-            inputs = inputs.to(device)
-            # print("input size after moving", list(inputs.size()))
-            labels = labels.to(device)
+                inputs = inputs.to(device)
+                # print("input size after moving", list(inputs.size()))
+                labels = labels.to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
-            # print("input size after opt", list(inputs.size()))
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                # print("input size after opt", list(inputs.size()))
 
-            # forward + backward + optimize
+                # forward + backward + optimize
 
-            # print("my input is size", list(inputs.size()))
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+                # print("my input is size", list(inputs.size()))
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-            # print statistics
-            running_loss += loss.item()
-            epoch_loss += loss.item()
-            if i % 100 == 0:    # print every 2000 mini-batches
-                print('\t[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 100))
-                running_loss = 0.0
+                # print statistics
+                running_loss += loss.item()
+                epoch_loss += loss.item()
+                if i % 6 == 0:    # print every 6 batches of batch = 16, 96 samples
+                    print('\t[%d, %5d] loss: %.3f' %
+                        (epoch + 1, i*batch, running_loss / 6))
+                    running_loss = 0.0
+            except ValueError:
+                print("ValueError occurred at index", i)
+                bad_file_indexes.append(i)
+
 
         print("Epoch", epoch, "complete, saving to...", epoch_path)
         torch.save(model.state_dict(), epoch_path)
@@ -146,36 +154,45 @@ if __name__=="__main__":
         print("Running validation...")
         val_loss = 0.0
         running_val_loss = 0.0
+        bad_file_indexes_val = []
         for i, data in enumerate(valloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+            try:
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
 
-            # print("input size after data", list(inputs.size()))
-            # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-            inputs = torch.squeeze(inputs, 0)
-            labels = torch.squeeze(labels, 0)
+                # print("input size after data", list(inputs.size()))
+                # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+                inputs = torch.squeeze(inputs, 1)
+                labels = torch.squeeze(labels, 1)
 
 
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+                # zero the parameter gradients
+                optimizer.zero_grad()
 
-            # only run forward for val
-            outputs = model(inputs)
+                # only run forward for val
+                outputs = model(inputs)
 
-            # print statistics
-            running_val_loss += loss.item()
-            val_loss += loss.item()
-            if i % 100 == 0:    # print every 2000 mini-batches
-                print('\t[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_val_loss / 100))
-                running_val_loss = 0.0
+                # print statistics
+                running_val_loss += loss.item()
+                val_loss += loss.item()
+                if i % 6 == 0:    # print every 6 batches of batch = 16, 96 samples
+                    print('\t[%d, %5d] loss: %.3f' %
+                        (epoch + 1, i*batch, running_val_loss / 6))
+                    running_val_loss = 0.0
+
+            except ValueError:
+                print("Bad validation file at batch ", i)
+                bad_file_indexes_val.append(i)
+
 
         print("Epoch", epoch, "validation loss:", val_loss/2000)
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
             f.write("Epoch " + str(epoch) + " validation loss: " + str(val_loss/2000))
+            f.write("bad_file_indexes batch for training: " + str(bad_file_indexes))
+            f.write("bad_file_indexes batch for val: " + str(bad_file_indexes_val))
             f.close()
 
 
