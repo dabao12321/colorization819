@@ -134,8 +134,17 @@ class SIGGRAPHGenerator(BaseColor):
             input_B = torch.cat((input_A*0, input_A*0), dim=1)
         if(mask_B is None):
             mask_B = input_A*0
-
-        conv1_2 = self.model1(torch.cat((self.normalize_l(input_A),self.normalize_ab(input_B),mask_B),dim=1))
+        
+        # if dev:
+        #     input_B = input_B.to(dev)
+        #     mask_B = mask_B.to(dev)
+        normalized_A = self.normalize_l(input_A)
+        normalized_B = self.normalize_ab(input_B)
+        print("normalized_A type", type(normalized_A))
+        print("normalized_B type", type(normalized_B))
+        print("normalized_A size", list(normalized_A.size()))
+        print("normalized_B size", list(normalized_B.size()))
+        conv1_2 = self.model1(torch.cat((normalized_A,normalized_B,mask_B),dim=1))
         conv2_2 = self.model2(conv1_2[:,:,::2,::2])
         conv3_3 = self.model3(conv2_2[:,:,::2,::2])
         conv4_3 = self.model4(conv3_3[:,:,::2,::2])

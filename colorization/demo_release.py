@@ -35,6 +35,8 @@ if(opt.use_gpu):
 # resize and concatenate to original L channel
 # print("checkpoint 2")
 
+print("input size", list(tens_l_rs.size()))
+
 img_bw = postprocess_tens(tens_l_orig, torch.cat((0*tens_l_orig,0*tens_l_orig),dim=1))
 # print("checkpoint 3a")
 
@@ -42,8 +44,6 @@ out_img_eccv16 = postprocess_tens(tens_l_orig, colorizer_eccv16(tens_l_rs).cpu()
 # print("checkpoint 3b")
 
 model_output = colorizer_siggraph17(tens_l_rs).cpu()
-print(type(model_output))
-print(list(model_output.size()))
 
 out_img_siggraph17 = postprocess_tens(tens_l_orig, model_output)
 

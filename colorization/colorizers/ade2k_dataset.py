@@ -3,6 +3,9 @@ import os, sys
 from PIL import Image
 from skimage import color
 from colorization.colorizers.util import *
+from colorization.colorizers.siggraph17 import siggraph17
+
+import torch.optim as optim
 
 class ADE2kDataset(torch.utils.data.Dataset):
     def __init__(self, img_dir, mask_dir, split):
@@ -13,6 +16,14 @@ class ADE2kDataset(torch.utils.data.Dataset):
         self.img_dir = img_dir
         self.mask_dir = mask_dir
         self.split = split
+    
+    def __len__(self):
+        if self.split == "train":
+            return 20000
+        elif self.split == "val":
+            return 2000
+        else:
+            return 0
 
     def __getitem__(self, index):
         """
@@ -47,17 +58,79 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # 1. ade2k image bw resized
         # 2. ade2k mask resized, ignore for now
         # 3. ade2k 1 x 2 x 256 x 256 image ab tensor
-
         return img_l_rs, img_ab_rs
         
 
 
 if __name__=="__main__":
     # print(sys.path)
-    my_data = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
+    train_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
                             "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training", \
                             "train")
+
+    model = siggraph17(pretrained=False)
+    
+    # Params
+    model_dir = "model_weights/"
+    num_epochs = 10
+    learning_rate = 0.001
+
+    print("checkpt 1")
+
+    # Moving model to GPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    print("checkpt 2")
+
+    # Dataset to dataloader
+    trainloader = torch.utils.data.DataLoader(train_dataset, pin_memory=True)
+
+    print("checkpt 3")
+
+    # Loss and optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    print("checkpt 4")
+
+    for epoch in range(num_epochs):  # loop over the dataset multiple times
+        print("Starting epoch", epoch)
+        running_loss = 0.0
+        epoch_path = model_dir + "epoch_" + str(epoch) + ".pt"
+        for i, data in enumerate(trainloader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+            inputs = torch.squeeze(inputs, 0)
+            labels = torch.squeeze(labels, 0)
+
+            inputs = inputs.to(device)
+            inputs = labels.to(device)
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 2000 == 1999:    # print every 2000 mini-batches
+                print('\t[%d, %5d] loss: %.3f' %
+                    (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
+
+        print("Epoch", epoch, "complete, saving to...", epoch_path)
+        torch.save(model.state_dict(), PATH)
+        print("Saved epoch", epoch)
+
+    print('Finished Training')
    
-   
+
 
         
