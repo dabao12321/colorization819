@@ -67,6 +67,9 @@ if __name__=="__main__":
     train_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
                             "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training", \
                             "train")
+    val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
+                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+                            "val")
 
     model = siggraph17(pretrained=False)
     
@@ -85,11 +88,12 @@ if __name__=="__main__":
 
     # Dataset to dataloader
     trainloader = torch.utils.data.DataLoader(train_dataset, pin_memory=True)
+    valloader = torch.utils.data.DataLoader(train_dataset, pin_memory=True)
 
     print("checkpt 3")
 
     # Loss and optimizer
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     print("checkpt 4")
@@ -97,6 +101,7 @@ if __name__=="__main__":
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         print("Starting epoch", epoch)
         running_loss = 0.0
+        epoch_loss = 0.0
         epoch_path = model_dir + "epoch_" + str(epoch) + ".pt"
         for i, data in enumerate(trainloader, 0):
             # get the inputs; data is a list of [inputs, labels]
@@ -105,13 +110,13 @@ if __name__=="__main__":
             # print("input size after data", list(inputs.size()))
             # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
             inputs = torch.squeeze(inputs, 0)
-            labels = torch.squeeze(labels)
+            labels = torch.squeeze(labels, 0)
             # print("input size after squeeze", list(inputs.size()))
 
 
             inputs = inputs.to(device)
             # print("input size after moving", list(inputs.size()))
-            labels = labels.to(device, dtype=torch.long)
+            labels = labels.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -121,23 +126,55 @@ if __name__=="__main__":
 
             # print("my input is size", list(inputs.size()))
             outputs = model(inputs)
-            outputs = torch.squeeze(outputs, 0)
-            print("output size", list(outputs.size()))
-            print("label size", list(labels.size()))
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
             # print statistics
             running_loss += loss.item()
-            if i % 10 == 0:    # print every 2000 mini-batches
+            epoch_loss += loss.item()
+            if i % 100 == 0:    # print every 2000 mini-batches
                 print('\t[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 2000))
+                    (epoch + 1, i + 1, running_loss / 100))
                 running_loss = 0.0
 
         print("Epoch", epoch, "complete, saving to...", epoch_path)
-        torch.save(model.state_dict(), PATH)
-        print("Saved epoch", epoch)
+        torch.save(model.state_dict(), epoch_path)
+        epoch_loss_avg = epoch_loss/20000
+        print("Saved epoch", epoch, "avg epoch loss = ", epoch_loss_avg)
+
+        print("Running validation...")
+        val_loss = 0.0
+        running_val_loss = 0.0
+        for i, data in enumerate(valloader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # print("input size after data", list(inputs.size()))
+            # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+            inputs = torch.squeeze(inputs, 0)
+            labels = torch.squeeze(labels, 0)
+
+
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # only run forward for val
+            outputs = model(inputs)
+
+            # print statistics
+            running_val_loss += loss.item()
+            val_loss += loss.item()
+            if i % 100 == 0:    # print every 2000 mini-batches
+                print('\t[%d, %5d] loss: %.3f' %
+                    (epoch + 1, i + 1, running_val_loss / 100))
+                running_val_loss = 0.0
+
+        print("Epoch", epoch, "validation loss:", val_loss)
+
 
     print('Finished Training')
    
