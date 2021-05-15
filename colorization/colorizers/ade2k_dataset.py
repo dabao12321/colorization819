@@ -89,7 +89,7 @@ if __name__=="__main__":
 
     # Dataset to dataloader
     trainloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
-    valloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
+    valloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size = batch, pin_memory=True)
 
     print("checkpt 3")
 
