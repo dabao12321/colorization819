@@ -19,7 +19,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
     
     def __len__(self):
         if self.split == "train":
-            return 20000
+            return 20210
         elif self.split == "val":
             return 2000
         else:
@@ -140,7 +140,7 @@ if __name__=="__main__":
 
         print("Epoch", epoch, "complete, saving to...", epoch_path)
         torch.save(model.state_dict(), epoch_path)
-        epoch_loss_avg = epoch_loss/20000
+        epoch_loss_avg = epoch_loss/20210
         print("Saved epoch", epoch, "avg epoch loss = ", epoch_loss_avg)
 
         print("Running validation...")
@@ -173,7 +173,10 @@ if __name__=="__main__":
                     (epoch + 1, i + 1, running_val_loss / 100))
                 running_val_loss = 0.0
 
-        print("Epoch", epoch, "validation loss:", val_loss)
+        print("Epoch", epoch, "validation loss:", val_loss/2000)
+        with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
+            f.write("Epoch " + str(epoch) + " validation loss: " + str(val_loss/2000))
+            f.close()
 
 
     print('Finished Training')
