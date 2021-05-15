@@ -126,7 +126,7 @@ class SIGGRAPHGenerator(BaseColor):
         self.model_class = nn.Sequential(*model_class)
         self.model_out = nn.Sequential(*model_out)
 
-        self.upsample4 = nn.Sequential(*[nn.Upsample(scale_factor=4, mode='bilinear'),])
+        self.upsample4 = nn.Sequential(*[nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True),])
         self.softmax = nn.Sequential(*[nn.Softmax(dim=1),])
 
     def forward(self, input_A, input_B=None, mask_B=None):
@@ -165,4 +165,3 @@ def siggraph17(pretrained=True):
         import torch.utils.model_zoo as model_zoo
         model.load_state_dict(model_zoo.load_url('https://colorizers.s3.us-east-2.amazonaws.com/siggraph17-df00044c.pth',map_location='cpu',check_hash=True))
     return model
-

@@ -15,7 +15,7 @@ def load_img(img_path):
 def resize_img(img, HW=(256,256), resample=3):
 	return np.asarray(Image.fromarray(img).resize((HW[1],HW[0]), resample=resample))
 
-def preprocess_img(img_rgb_orig, HW=(256,256), resample=3):
+def preprocess_img(img_rgb_orig, HW=(256,256), resample=3, ade2k=False):
 	# return original size L and resized L as torch Tensors
 	img_rgb_rs = resize_img(img_rgb_orig, HW=HW, resample=resample)
 	
@@ -27,8 +27,16 @@ def preprocess_img(img_rgb_orig, HW=(256,256), resample=3):
 
 	tens_orig_l = torch.Tensor(img_l_orig)[None,None,:,:]
 	tens_rs_l = torch.Tensor(img_l_rs)[None,None,:,:]
+	
+	if ade2k:
+		img_a_rs = img_lab_rs[:,:,1]
+		img_b_rs = img_lab_rs[:,:,2]
+		img_ab_rs = np.asarray([[img_a_rs, img_b_rs]])
+		tens_rs_ab = torch.Tensor(img_ab_rs)
+		return (tens_orig_l, tens_rs_l, tens_rs_ab)
 
 	return (tens_orig_l, tens_rs_l)
+
 
 def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	# tens_orig_l 	1 x 1 x H_orig x W_orig
