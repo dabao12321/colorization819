@@ -3,6 +3,7 @@ import argparse
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import torch
 
 from colorizers import *
 
@@ -19,11 +20,17 @@ if(opt.use_gpu):
 	colorizer_eccv16.cuda()
 	colorizer_siggraph17.cuda()
 
+use_ade2k = True
+epoch_path = "colorizers/model_weights/epoch_9.pt"
+if use_ade2k:
+	colorizer_siggraph17.load_state_dict(torch.load(epoch_path))
+
 # print("checkpoint 1")
 # default size to process images is 256x256
 # grab L channel in both original ("orig") and resized ("rs") resolutions
 img = load_img(opt.img_path)
-(tens_l_orig, tens_l_rs) = preprocess_img(img, HW=(256,256))
+# (tens_l_orig, tens_l_rs) = preprocess_img(img, HW=(256,256))
+(tens_l_orig, tens_l_rs, img_ab_rs) = preprocess_img(img, HW=(256,256), ade2k=True)
 # print("img size", img.shape)
 # print("tens_l_orig", list(tens_l_orig.size()))
 # print("tens_l_rs", list(tens_l_rs.size()))
@@ -45,6 +52,10 @@ out_img_eccv16 = postprocess_tens(tens_l_orig, colorizer_eccv16(tens_l_rs).cpu()
 
 print("my input is size", list(tens_l_rs.size()))
 model_output = colorizer_siggraph17(tens_l_rs).cpu()
+
+criterion = torch.nn.MSELoss()
+loss = criterion(model_output, img_ab_rs)
+print("LOSS is: ", loss.item())
 
 out_img_siggraph17 = postprocess_tens(tens_l_orig, model_output)
 

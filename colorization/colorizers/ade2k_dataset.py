@@ -70,14 +70,15 @@ if __name__=="__main__":
     val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
                             "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
                             "val")
-
-    model = siggraph17(pretrained=False)
     
     # Params
     model_dir = "model_weights/"
     num_epochs = 10
     learning_rate = 0.001
     batch = 16
+    use_pretrained = True
+
+    model = siggraph17(pretrained=use_pretrained)
 
     print("checkpt 1")
 
