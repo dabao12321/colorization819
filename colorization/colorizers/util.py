@@ -57,6 +57,7 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 
 def postprocess_tens_class(tens_orig_l, out_ab, mode='bilinear'):
     # TODO
+    pass
 
 def lab_normalize(lab_rs):
     b = BaseColor()
