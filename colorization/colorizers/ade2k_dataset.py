@@ -142,7 +142,6 @@ if __name__=="__main__":
                 # print("my input is size", list(inputs.size()))
                 class_outputs = model(l_inputs)
                 ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
-                # loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc.type(torch.cuda.LongTensor))
                 loss = 0
                 # for i in range(batch):
                 #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
@@ -150,7 +149,10 @@ if __name__=="__main__":
                 #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
                 print("shape1", class_outputs.type(torch.FloatTensor).shape)
                 print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
-                loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                if torch.cuda.is_available():
+                    loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                else:
+                    loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
                 loss.backward()
                 optimizer.step()
 
