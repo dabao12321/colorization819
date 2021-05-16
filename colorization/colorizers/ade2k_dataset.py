@@ -163,7 +163,6 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_loss / 6))
                     running_loss = 0.0
-                break
 
 
             print("Epoch", epoch, "complete, saving to...", epoch_path)
@@ -221,7 +220,6 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_val_loss / 6))
                     running_val_loss = 0.0
-                break
 
         print("Epoch", epoch, "validation loss:", val_loss/(2000/batch))
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
