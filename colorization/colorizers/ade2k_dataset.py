@@ -147,8 +147,8 @@ if __name__=="__main__":
                 #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
                 #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
                 #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
-                print("shape1", class_outputs.type(torch.FloatTensor).shape)
-                print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                # print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                # print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
                 if torch.cuda.is_available():
                     loss += criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
                 else:
@@ -178,19 +178,41 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
-
+                l_inputs, ab_inputs = data
+                
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-                inputs = torch.squeeze(inputs, 1)
-                labels = torch.squeeze(labels, 1)
+                l_inputs = torch.squeeze(l_inputs, 1)
+                ab_inputs = torch.squeeze(ab_inputs, 1)
+                # print("input size after squeeze", list(inputs.size()))
 
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                l_inputs = l_inputs.to(device)
+                # print("input size after moving", list(inputs.size()))
+                ab_inputs = ab_inputs.to(device)
 
-                # only run forward for val
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                # print("lshape", l_inputs.shape)
+                # print("abshape", ab_inputs.shape)
+                ab_rs = ab_inputs[:, :, ::4, ::4]
+
+                # zero the parameter gradients
+                # print("input size after opt", list(inputs.size()))
+
+                # forward + backward + optimize
+
+                # print("my input is size", list(inputs.size()))
+                class_outputs = model(l_inputs)
+                ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
+                loss = 0
+                # for i in range(batch):
+                #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
+                #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
+                #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
+                print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                if torch.cuda.is_available():
+                    loss += criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                else:
+                    loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
 
                 # print statistics
                 running_val_loss += loss.item()
