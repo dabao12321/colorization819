@@ -53,6 +53,18 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1)
 	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
 
+def encode_ab_ind(data_ab, ab_norm, ab_max, ab_quant, A):
+    # Encode ab value into an index
+    # INPUTS
+    #   data_ab   Nx2xHxW \in [-1,1]
+    # OUTPUTS
+    #   data_q    Nx1xHxW \in [0,Q)
+
+    data_ab_rs = torch.round((data_ab*ab_norm + ab_max)/ab_quant) # normalized bin number
+    data_q = data_ab_rs[:,[0],:,:]*A + data_ab_rs[:,[1],:,:]
+    return data_q
+
+"""
 # Layer utility functions
 
 def check_value(inds, val):
@@ -110,3 +122,4 @@ def unflatten_2d_array(pts_flt,pts_nd,axis=1,squeeze=False):
         pts_out = pts_out.transpose(axorder_rev)
 
     return pts_out
+"""

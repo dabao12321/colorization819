@@ -63,6 +63,11 @@ class ADE2kDataset(torch.utils.data.Dataset):
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
+    ab_norm = 110.
+    ab_max = 110.
+    ab_quant = 10.
+    A = 2 * ab_max / ab_quant + 1
+
     # print(sys.path)
     train_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
                             "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training", \
@@ -94,8 +99,8 @@ if __name__=="__main__":
     print("checkpt 3")
 
     # Loss and optimizer
-    criterion = torch.nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
     print("checkpt 4")
 
@@ -112,13 +117,14 @@ if __name__=="__main__":
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
+                l_rs = inputs[0]
+                ab_rs = inputs[1]
 
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
                 # print("input size after squeeze", list(inputs.size()))
-
 
                 inputs = inputs.to(device)
                 # print("input size after moving", list(inputs.size()))
@@ -131,8 +137,9 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                class_outputs = model(inputs)
+                ab_enc = encode_ab_ind(ab_rs[:, :, ::4, ::4], ab_norm, ab_max, ab_quant, A)
+                loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
                 loss.backward()
                 optimizer.step()
 
