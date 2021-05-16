@@ -129,8 +129,8 @@ if __name__=="__main__":
                 # print("input size after moving", list(inputs.size()))
                 ab_inputs = ab_inputs.to(device)
 
-                print("lshape", l_inputs.shape)
-                print("abshape", ab_inputs.shape)
+                # print("lshape", l_inputs.shape)
+                # print("abshape", ab_inputs.shape)
                 ab_rs = ab_inputs[:, :, ::4, ::4]
 
                 # zero the parameter gradients
@@ -150,7 +150,7 @@ if __name__=="__main__":
                 print("shape1", class_outputs.type(torch.FloatTensor).shape)
                 print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
                 if torch.cuda.is_available():
-                    loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                    loss += criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
                 else:
                     loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
                 loss.backward()
@@ -163,6 +163,7 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_loss / 6))
                     running_loss = 0.0
+                break
 
 
             print("Epoch", epoch, "complete, saving to...", epoch_path)
@@ -198,6 +199,7 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_val_loss / 6))
                     running_val_loss = 0.0
+                break
 
         print("Epoch", epoch, "validation loss:", val_loss/(2000/batch))
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:

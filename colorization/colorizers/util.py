@@ -55,6 +55,9 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1)
 	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
 
+def postprocess_tens_class(tens_orig_l, out_ab, mode='bilinear'):
+    # TODO
+
 def lab_normalize(lab_rs):
     b = BaseColor()
     # l_rs = (lab[:,[0],:,:]-opt.l_cent)/opt.l_norm
