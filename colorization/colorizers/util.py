@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 from IPython import embed
 
+from .base_color import *
+
 def load_img(img_path):
 	out_np = np.asarray(Image.open(img_path))
 	if(out_np.ndim==2):
@@ -53,14 +55,26 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1)
 	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
 
-def encode_ab_ind(data_ab, ab_norm, ab_max, ab_quant, A):
+def lab_normalize(lab_rs):
+    b = BaseColor()
+    # l_rs = (lab[:,[0],:,:]-opt.l_cent)/opt.l_norm
+    l_rs = b.normalize_l(lab_rs[:,[0],:,:])
+    # ab_rs = lab[:,1:,:,:]/opt.ab_norm
+    ab_rs = b.normalize_ab(lab_rs[:,1:,:,:])
+    out = torch.cat((l_rs,ab_rs),dim=1)
+    # if(torch.sum(torch.isnan(out))>0):
+        # print('rgb2lab')
+        # embed()
+    return out
+
+def encode_ab_ind(data_ab, ab_max, ab_quant, A):
     # Encode ab value into an index
     # INPUTS
     #   data_ab   Nx2xHxW \in [-1,1]
     # OUTPUTS
     #   data_q    Nx1xHxW \in [0,Q)
 
-    data_ab_rs = torch.round((data_ab*ab_norm + ab_max)/ab_quant) # normalized bin number
+    data_ab_rs = torch.round((data_ab + ab_max)/ab_quant) # normalized bin number
     data_q = data_ab_rs[:,[0],:,:]*A + data_ab_rs[:,[1],:,:]
     return data_q
 

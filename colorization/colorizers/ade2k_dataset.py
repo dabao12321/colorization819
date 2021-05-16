@@ -69,11 +69,11 @@ if __name__=="__main__":
     A = 2 * ab_max / ab_quant + 1
 
     # print(sys.path)
-    train_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
-                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training", \
+    train_dataset = ADE2kDataset("../data/ADEChallengeData2016/images/training", \
+                            "../data/ADEChallengeData2016/annotations/training", \
                             "train")
-    val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
-                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+    val_dataset = ADE2kDataset("../data/ADEChallengeData2016/images/validation", \
+                            "../data/ADEChallengeData2016/annotations/validation", \
                             "val")
 
     model = siggraph17(pretrained=False)
@@ -88,7 +88,8 @@ if __name__=="__main__":
 
     # Moving model to GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.cuda()
+    if torch.cuda.is_available():
+        model.cuda()
 
     print("checkpt 2")
 
@@ -116,19 +117,21 @@ if __name__=="__main__":
         else:
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
-                l_rs = inputs[0]
-                ab_rs = inputs[1]
-
+                l_inputs, ab_inputs = data
+                
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-                inputs = torch.squeeze(inputs, 1)
-                labels = torch.squeeze(labels, 1)
+                l_inputs = torch.squeeze(l_inputs, 1)
+                ab_inputs = torch.squeeze(ab_inputs, 1)
                 # print("input size after squeeze", list(inputs.size()))
 
-                inputs = inputs.to(device)
+                l_inputs = l_inputs.to(device)
                 # print("input size after moving", list(inputs.size()))
-                labels = labels.to(device)
+                ab_inputs = ab_inputs.to(device)
+
+                print("lshape", l_inputs.shape)
+                print("abshape", ab_inputs.shape)
+                ab_rs = ab_inputs[:, :, ::4, ::4]
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -137,9 +140,17 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                class_outputs = model(inputs)
-                ab_enc = encode_ab_ind(ab_rs[:, :, ::4, ::4], ab_norm, ab_max, ab_quant, A)
-                loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                class_outputs = model(l_inputs)
+                ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
+                # loss = criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc.type(torch.cuda.LongTensor))
+                loss = 0
+                # for i in range(batch):
+                #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
+                #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
+                #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
+                print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
                 loss.backward()
                 optimizer.step()
 

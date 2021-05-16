@@ -9,7 +9,7 @@ class SIGGRAPHGenerator(BaseColor):
     def __init__(self, norm_layer=nn.BatchNorm2d, classes=529):
         super(SIGGRAPHGenerator, self).__init__()
 
-        model_ss = [nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=8, groups=2)]
+        # model_ss = [nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=8, groups=2)]
 
         # Conv1
         model1=[nn.Conv2d(4, 64, kernel_size=3, stride=1, padding=1, bias=True),]
@@ -104,7 +104,7 @@ class SIGGRAPHGenerator(BaseColor):
         model10+=[nn.LeakyReLU(negative_slope=.2),]
 
         # Color encoding
-        model_colorencode = [NeighborsEncLayer(),]
+        # model_colorencode = [NeighborsEncLayer(),]
 
         # classification output
         model_class=[nn.Conv2d(256, classes, kernel_size=1, padding=0, dilation=1, stride=1, bias=True),]
@@ -130,9 +130,9 @@ class SIGGRAPHGenerator(BaseColor):
         self.model2short9 = nn.Sequential(*model2short9)
         self.model1short10 = nn.Sequential(*model1short10)
 
-        self.model_colorencode = nn.Sequential(*model_colorencode)
+        # self.model_colorencode = nn.Sequential(*model_colorencode)
         # is this the right place to call this?
-        self.model_colorencode.zero_grad()
+        # self.model_colorencode.zero_grad()
 
         self.model_class = nn.Sequential(*model_class)
         self.model_out = nn.Sequential(*model_out)
