@@ -352,8 +352,6 @@ class SIGGRAPHGenerator(BaseColor):
         self.model2short9 = nn.Sequential(*model2short9)
         self.model1short10 = nn.Sequential(*model1short10)
 
-
-
         self.model_colorencode = nn.Sequential(*model_colorencode)
         # is this the right place to call this?
         self.model_colorencode.zero_grad()
@@ -401,19 +399,32 @@ class SIGGRAPHGenerator(BaseColor):
         conv10_2 = self.model10(conv10_up)
 
 
-        # out_reg = self.model_out(conv10_2)
-        # class_reg = self.model_class(conv8_3)
+        """
+        out_reg = self.model_out(conv10_2)
         colorencode = self.model_colorencode(conv8_3)
         data_ab_ss = self.model_ab_ss(input_B)
-        gt_ab_ss = self.model_colorencode()
+        gt_ab_ss = self.model_colorencode(data_ab_ss)
         nongray_mask = self.model_nongraymask(data_ab_ss)
         prior_boost_nongray = prior_boost * nongray_mask
 
         conv8_boost = self.class_rebalance(conv8_3, prior_boost_nongray)
         # TODO: what
-        self.softmax_crossentropyloss(conv8_boost, gt_ab_ss)
+        class_reg = self.model_class(conv8_boost)
 
         return self.unnormalize_ab(class_reg)
+        """
+
+        out_class = self.model_class(conv8_3)
+
+        conv9_up = self.model9up(conv8_3.detach()) + self.model2short9(conv2_2.detach())
+        conv9_3 = self.model9(conv9_up)
+        conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2.detach())
+        conv10_2 = self.model10(conv10_up)
+        out_reg = self.model_out(conv10_2)
+
+        # TODO: Do you unnormalize this? Prob not
+        # return self.unnormalize_ab(class_reg)
+        return class_reg
 
 def siggraph17(pretrained=True):
     model = SIGGRAPHGenerator()
