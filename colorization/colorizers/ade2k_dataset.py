@@ -100,7 +100,8 @@ if __name__=="__main__":
     print("checkpt 3")
 
     # Loss and optimizer
-    criterion = torch.nn.CrossEntropyLoss()
+    criterionCE = torch.nn.CrossEntropyLoss()
+    criterionL1 = torch.nn.L1Loss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
     print("checkpt 4")
@@ -140,9 +141,9 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                class_outputs = model(l_inputs)
+                (reg_outputs, class_outputs) = model(l_inputs)
                 ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
-                loss = 0
+                class_loss = 0
                 # for i in range(batch):
                 #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
                 #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
@@ -150,9 +151,13 @@ if __name__=="__main__":
                 # print("shape1", class_outputs.type(torch.FloatTensor).shape)
                 # print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
                 if torch.cuda.is_available():
-                    loss += criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                    class_loss += criterionCE(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
                 else:
-                    loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                    class_loss += criterionCE(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                reg_loss = 10 * torch.mean(criterionL1(reg_outputs.type(torch.cuda.FloatTensor),
+                                                              ab_inputs.type(torch.cuda.FloatTensor)))
+                loss = class_loss * 1. + reg_loss
+                print("test class vs reg:", class_loss.item(), reg_loss.item())
                 loss.backward()
                 optimizer.step()
 
@@ -194,24 +199,29 @@ if __name__=="__main__":
                 ab_rs = ab_inputs[:, :, ::4, ::4]
 
                 # zero the parameter gradients
+                optimizer.zero_grad()
                 # print("input size after opt", list(inputs.size()))
 
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                class_outputs = model(l_inputs)
+                (reg_outputs, class_outputs) = model(l_inputs)
                 ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
-                loss = 0
+                class_loss = 0
                 # for i in range(batch):
                 #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
                 #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
                 #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
-                print("shape1", class_outputs.type(torch.FloatTensor).shape)
-                print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                # print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                # print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
                 if torch.cuda.is_available():
-                    loss += criterion(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                    class_loss += criterionCE(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
                 else:
-                    loss += criterion(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                    class_loss += criterionCE(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                reg_loss = 10 * torch.mean(criterionL1(reg_outputs.type(torch.cuda.FloatTensor),
+                                                              ab_inputs.type(torch.cuda.FloatTensor)))
+                loss = class_loss * 1. + reg_loss
+                print("val class vs reg:", class_loss.item(), reg_loss.item())
 
                 # print statistics
                 running_val_loss += loss.item()
