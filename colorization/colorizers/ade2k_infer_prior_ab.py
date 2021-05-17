@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     num_buckets = 100
     bucket_size = 26
-    num_files = 20210
+    num_files = 2000
     # prepopulate the map of bucket -> ab range
     # ab range is provided so that once bucket is picked randomly from prob dist,
     # a float val is picked randomly from ab range to introduce some noise 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     start_time = time.process_time()
 
-    Parallel(n_jobs=8)(delayed(infer_ab_npy)(i, mask_abval_probs, start_time, split_type="train") for i in range(num_files))
+    Parallel(n_jobs=8)(delayed(infer_ab_npy)(i, mask_abval_probs, start_time, split_type="val") for i in range(num_files))
 
     # for file_idx in range(num_files):
     #     # load mask

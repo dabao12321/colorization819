@@ -38,7 +38,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         else:
             return 0
 
-    def __getitem__(self, index, inferred_ab=True):
+    def __getitem__(self, index, inferred_ab=True, return_mask=True):
         """
         Convert index (0 indexed) into filename (1 indexed)
         """
@@ -77,9 +77,10 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # for inferred ab values from probability distribution
         # include the 1 x 2 x 256 x 256 inferred image ab tensor
 
-        if inferred_ab:
+        if inferred_ab and return_mask:
             inferred_ab_np = np.load(save_filename(index - 1, split=self.split))
-            return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np)
+            mask_rs = np.asarray([[np.asarray(mask_rs)]])
+            return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np), torch.Tensor(mask_rs)
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
@@ -133,7 +134,7 @@ if __name__=="__main__":
         else:
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, inferred_ab = data
+                inputs, labels, inferred_ab, masks = data
 
                 # print("inferred size", list(inferred_ab.size()))
                 # print("input size after data", list(inputs.size()))
@@ -142,6 +143,7 @@ if __name__=="__main__":
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
                 inferred_ab = torch.squeeze(inferred_ab, 1)
+                masks = torch.squeeze(masks, 1)
                 # print("input size after squeeze", list(inputs.size()))
 
 
@@ -149,6 +151,7 @@ if __name__=="__main__":
                 # print("input size after moving", list(inputs.size()))
                 labels = labels.to(device)
                 inferred_ab = inferred_ab.to(device)
+                masks = masks.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -157,7 +160,7 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                outputs = model(inputs, input_B = inferred_ab)
+                outputs = model(inputs, input_B = inferred_ab, mask_B=masks)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
@@ -171,7 +174,6 @@ if __name__=="__main__":
                     running_loss = 0.0
 
                 # testing break!
-                # sys.exit()
 
             print("Epoch", epoch, "complete, saving to...", epoch_path)
             torch.save(model.state_dict(), epoch_path)
@@ -185,20 +187,22 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, inferred_ab = data
+                inputs, labels, inferred_ab, masks = data
 
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
                 inferred_ab = torch.squeeze(inferred_ab, 1)
+                masks = torch.squeeze(masks, 1)
 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 inferred_ab = inferred_ab.to(device)
+                masks = masks.to(device)
 
                 # only run forward for val
-                outputs = model(inputs, input_B = inferred_ab)
+                outputs = model(inputs, input_B = inferred_ab, mask_B=masks)
                 loss = criterion(outputs, labels)
 
                 # print statistics
@@ -216,7 +220,6 @@ if __name__=="__main__":
             f.close()
         
         print("\t Finished epoch", epoch, " with current time elapsed: ", time.process_time() - start_time)
-
 
     print('Finished Training')
    
