@@ -25,7 +25,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         else:
             return 0
 
-    def __getitem__(self, index, return_mask=False):
+    def __getitem__(self, index, return_mask=True):
         """
         Convert index (0 indexed) into filename (1 indexed)
         """
