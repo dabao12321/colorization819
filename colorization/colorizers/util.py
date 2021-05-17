@@ -37,6 +37,22 @@ def preprocess_img(img_rgb_orig, HW=(256,256), resample=3, ade2k=False):
 
 	return (tens_orig_l, tens_rs_l)
 
+def preprocess_img_numpy(img_rgb_orig, HW=(256,256), resample=3, ade2k=False):
+	# return original size L and resized L as torch Tensors
+	img_rgb_rs = resize_img(img_rgb_orig, HW=HW, resample=resample)
+	
+	img_lab_orig = color.rgb2lab(img_rgb_orig)
+	img_lab_rs = color.rgb2lab(img_rgb_rs)
+
+	img_l_orig = img_lab_orig[:,:,0]
+	img_l_rs = img_lab_rs[:,:,0]
+	
+	if ade2k:
+		img_ab_rs = img_lab_rs[:,:,1:]
+		return (img_l_orig, img_l_rs, img_ab_rs)
+
+	return (img_l_orig, img_l_rs)
+
 
 def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	# tens_orig_l 	1 x 1 x H_orig x W_orig

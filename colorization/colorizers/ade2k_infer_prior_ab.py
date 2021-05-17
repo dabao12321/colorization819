@@ -36,14 +36,17 @@ def get_file_mask(index):
     mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
     return mask_rs
 
-def save_filename(index):
+def save_filename(index, split="train"):
     index += 1
     num_zeros = 8 - len(str(index))
 
     file_prefix = "ADE_inferred_ab_"
     file_prefix += "0"*num_zeros + str(index)
 
-    save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
+    if split == "train":
+        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
+    elif split == "val":
+        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
     return save_path
 
 
