@@ -61,7 +61,8 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # 2. ade2k mask resized, ignore for now
         # 3. ade2k 1 x 2 x 256 x 256 image ab tensor
         if return_mask:
-            return img_l_rs, img_ab_rs, mask_rs
+            mask_rs = np.asarray([[np.asarray(mask_rs)]])
+            return img_l_rs, img_ab_rs, torch.Tensor(mask_rs)
 
         return img_l_rs, img_ab_rs
 
@@ -79,7 +80,7 @@ if __name__=="__main__":
     num_epochs = 10
     learning_rate = 0.001
     batch = 16
-    use_pretrained = True
+    use_pretrained = False
 
     model = siggraph17(pretrained=use_pretrained)
 
@@ -115,18 +116,20 @@ if __name__=="__main__":
         else:
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
+                inputs, labels, masks = data
 
-                # print("input size after data", list(inputs.size()))
+                # print("masks size after data", list(masks.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
+                masks = torch.squeeze(masks, 1)
                 # print("input size after squeeze", list(inputs.size()))
 
 
                 inputs = inputs.to(device)
                 # print("input size after moving", list(inputs.size()))
                 labels = labels.to(device)
+                masks = masks.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -135,7 +138,7 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                outputs = model(inputs)
+                outputs = model(inputs, mask_B=masks)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
@@ -147,7 +150,7 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_loss / 6))
                     running_loss = 0.0
-
+                
 
             print("Epoch", epoch, "complete, saving to...", epoch_path)
             torch.save(model.state_dict(), epoch_path)
@@ -161,18 +164,20 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
+                inputs, labels, masks = data
 
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
+                masks = torch.squeeze(masks, 1)
 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                masks = masks.to(device)
 
                 # only run forward for val
-                outputs = model(inputs)
+                outputs = model(inputs, mask_B=masks)
                 loss = criterion(outputs, labels)
 
                 # print statistics
@@ -182,7 +187,7 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_val_loss / 6))
                     running_val_loss = 0.0
-
+                
         print("Epoch", epoch, "validation loss:", val_loss/(2000/batch))
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
             f.write("Epoch " + str(epoch) + " validation loss: " + str(val_loss/(2000/batch)))
