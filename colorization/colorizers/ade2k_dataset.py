@@ -25,7 +25,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         else:
             return 0
 
-    def __getitem__(self, index):
+    def __getitem__(self, index, return_mask=False):
         """
         Convert index (0 indexed) into filename (1 indexed)
         """
@@ -60,6 +60,9 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # 1. ade2k image bw resized
         # 2. ade2k mask resized, ignore for now
         # 3. ade2k 1 x 2 x 256 x 256 image ab tensor
+        if return_mask:
+            return img_l_rs, img_ab_rs, mask_rs
+
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
