@@ -23,14 +23,18 @@ def bucket_to_ab_range(bucket_idx, num_buckets = 10, bucket_size = 26):
 
     return range_a, range_b
 
-def get_file_mask(index):
+def get_file_mask(index, split="train"):
     index += 1
     num_zeros = 8 - len(str(index))
 
-    file_prefix = "ADE_train_"
-    file_prefix += "0"*num_zeros + str(index)
-
-    mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
+    if split == "train":
+        file_prefix = "ADE_train_"
+        file_prefix += "0"*num_zeros + str(index)
+        mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
+    elif split == "val":
+        file_prefix = "ADE_val_"
+        file_prefix += "0"*num_zeros + str(index)
+        mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation/" + file_prefix + ".png"
 
     mask = Image.open(mask_path)
     mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
@@ -62,7 +66,7 @@ if __name__ == "__main__":
 
     num_buckets = 100
     bucket_size = 26
-    num_files = 20210
+    num_files = 2000
     # prepopulate the map of bucket -> ab range
     # ab range is provided so that once bucket is picked randomly from prob dist,
     # a float val is picked randomly from ab range to introduce some noise 
@@ -80,7 +84,7 @@ if __name__ == "__main__":
 
     for file_idx in range(num_files):
         # load mask
-        mask_np = np.asarray(get_file_mask(file_idx))
+        mask_np = np.asarray(get_file_mask(file_idx, split="val"))
 
         # store final inferred mask in 1 x 2 x 256 x 256 np arr        
         inferred_a = np.zeros((256, 256))
@@ -136,7 +140,7 @@ if __name__ == "__main__":
                 inferred_b[i, j] = random_b
 
         inferred_ab_full = np.asarray([[inferred_a, inferred_b]])
-        np.save(save_filename(file_idx), inferred_ab_full)
+        np.save(save_filename(file_idx, split="val"), inferred_ab_full)
         if file_idx % 100 == 0:
             print("current file index: ", file_idx)      
             print("\tcurrent time elapsed", time.process_time() - start_time)

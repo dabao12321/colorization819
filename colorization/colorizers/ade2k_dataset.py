@@ -96,7 +96,7 @@ if __name__=="__main__":
     num_epochs = 10
     learning_rate = 0.001
     batch = 16
-    use_pretrained = True
+    use_pretrained = False
 
     model = siggraph17(pretrained=use_pretrained)
 
@@ -109,7 +109,7 @@ if __name__=="__main__":
     print("checkpt 2")
 
     # Dataset to dataloader
-    trainloader = torch.utils.data.DataLoader(train_dataset, shuffle=False, batch_size = batch, pin_memory=True)
+    trainloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
     valloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size = batch, pin_memory=True)
 
     print("checkpt 3")
@@ -184,18 +184,20 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
+                inputs, labels, inferred_ab = data
 
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
+                inferred_ab = torch.squeeze(inferred_ab, 1)
 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                inferred_ab = inferred_ab.to(device)
 
                 # only run forward for val
-                outputs = model(inputs)
+                outputs = model(inputs, input_B = inferred_ab)
                 loss = criterion(outputs, labels)
 
                 # print statistics
