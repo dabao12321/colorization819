@@ -4,7 +4,7 @@ from PIL import Image
 from skimage import color
 from colorization.colorizers.util import *
 from colorization.colorizers.siggraph17 import siggraph17
-
+import time
 import torch.optim as optim
 
 def save_filename(index, split="train"):
@@ -78,7 +78,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # include the 1 x 2 x 256 x 256 inferred image ab tensor
 
         if inferred_ab:
-            inferred_ab_np = np.load(save_filename(index, split=self.split))
+            inferred_ab_np = np.load(save_filename(index - 1, split=self.split))
             return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np)
         return img_l_rs, img_ab_rs
 
@@ -120,6 +120,7 @@ if __name__=="__main__":
 
     print("checkpt 4")
 
+    start_time = time.process_time()
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         print("Starting epoch", epoch)
         running_loss = 0.0
@@ -213,10 +214,11 @@ if __name__=="__main__":
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
             f.write("Epoch " + str(epoch) + " validation loss: " + str(val_loss/(2000/batch)))
             f.close()
+        
+        print("\t Finished epoch", epoch, " with current time elapsed: ", time.process_time() - start_time)
 
 
     print('Finished Training')
    
-
 
         
