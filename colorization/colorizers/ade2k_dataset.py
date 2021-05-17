@@ -4,8 +4,21 @@ from PIL import Image
 from skimage import color
 from colorization.colorizers.util import *
 from colorization.colorizers.siggraph17 import siggraph17
-
+import time
 import torch.optim as optim
+
+def save_filename(index, split="train"):
+    index += 1
+    num_zeros = 8 - len(str(index))
+
+    file_prefix = "ADE_inferred_ab_"
+    file_prefix += "0"*num_zeros + str(index)
+
+    if split == "train":
+        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
+    elif split == "val":
+        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
+    return save_path
 
 class ADE2kDataset(torch.utils.data.Dataset):
     def __init__(self, img_dir, mask_dir, split):
@@ -25,7 +38,7 @@ class ADE2kDataset(torch.utils.data.Dataset):
         else:
             return 0
 
-    def __getitem__(self, index, return_mask=True):
+    def __getitem__(self, index, inferred_ab=True):
         """
         Convert index (0 indexed) into filename (1 indexed)
         """
@@ -60,10 +73,13 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # 1. ade2k image bw resized
         # 2. ade2k mask resized, ignore for now
         # 3. ade2k 1 x 2 x 256 x 256 image ab tensor
-        if return_mask:
-            mask_rs = np.asarray([[np.asarray(mask_rs)]])
-            return img_l_rs, img_ab_rs, torch.Tensor(mask_rs)
 
+        # for inferred ab values from probability distribution
+        # include the 1 x 2 x 256 x 256 inferred image ab tensor
+
+        if inferred_ab:
+            inferred_ab_np = np.load(save_filename(index - 1, split=self.split))
+            return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np)
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
@@ -80,7 +96,7 @@ if __name__=="__main__":
     num_epochs = 10
     learning_rate = 0.001
     batch = 16
-    use_pretrained = False
+    use_pretrained = True
 
     model = siggraph17(pretrained=use_pretrained)
 
@@ -104,6 +120,7 @@ if __name__=="__main__":
 
     print("checkpt 4")
 
+    start_time = time.process_time()
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         print("Starting epoch", epoch)
         running_loss = 0.0
@@ -116,20 +133,22 @@ if __name__=="__main__":
         else:
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, masks = data
+                inputs, labels, inferred_ab = data
 
-                # print("masks size after data", list(masks.size()))
+                # print("inferred size", list(inferred_ab.size()))
+                # print("input size after data", list(inputs.size()))
+
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
-                masks = torch.squeeze(masks, 1)
+                inferred_ab = torch.squeeze(inferred_ab, 1)
                 # print("input size after squeeze", list(inputs.size()))
 
 
                 inputs = inputs.to(device)
                 # print("input size after moving", list(inputs.size()))
                 labels = labels.to(device)
-                masks = masks.to(device)
+                inferred_ab = inferred_ab.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -138,7 +157,7 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                outputs = model(inputs, mask_B=masks)
+                outputs = model(inputs, input_B = inferred_ab)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
@@ -150,7 +169,9 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_loss / 6))
                     running_loss = 0.0
-                
+
+                # testing break!
+                # sys.exit()
 
             print("Epoch", epoch, "complete, saving to...", epoch_path)
             torch.save(model.state_dict(), epoch_path)
@@ -164,20 +185,20 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, masks = data
+                inputs, labels, inferred_ab = data
 
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
-                masks = torch.squeeze(masks, 1)
+                inferred_ab = torch.squeeze(inferred_ab, 1)
 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-                masks = masks.to(device)
+                inferred_ab = inferred_ab.to(device)
 
                 # only run forward for val
-                outputs = model(inputs, mask_B=masks)
+                outputs = model(inputs, input_B = inferred_ab)
                 loss = criterion(outputs, labels)
 
                 # print statistics
@@ -187,15 +208,17 @@ if __name__=="__main__":
                     print('\t[%d, %5d] loss: %.3f' %
                         (epoch + 1, i*batch, running_val_loss / 6))
                     running_val_loss = 0.0
-                
+
+
         print("Epoch", epoch, "validation loss:", val_loss/(2000/batch))
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
             f.write("Epoch " + str(epoch) + " validation loss: " + str(val_loss/(2000/batch)))
             f.close()
+        
+        print("\t Finished epoch", epoch, " with current time elapsed: ", time.process_time() - start_time)
 
 
     print('Finished Training')
    
-
 
         
