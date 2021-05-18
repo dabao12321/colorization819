@@ -151,17 +151,6 @@ class SIGGRAPHGenerator(BaseColor):
         #     mask_B = mask_B.to(dev)
         normalized_A = self.normalize_l(input_A)
         normalized_B = self.normalize_ab(input_B)
-        # print("normalized_A type", type(normalized_A))
-        # print("normalized_B type", type(normalized_B))
-        # print("normalized_A size", list(normalized_A.size()))
-        # print("normalized_B size", list(normalized_B.size()))
-        conv1_2 = self.model1(torch.cat((normalized_A,normalized_B,mask_B),dim=1))
-        conv2_2 = self.model2(conv1_2[:,:,::2,::2])
-        conv3_3 = self.model3(conv2_2[:,:,::2,::2])
-        conv4_3 = self.model4(conv3_3[:,:,::2,::2])
-        conv5_3 = self.model5(conv4_3)
-        conv6_3 = self.model6(conv5_3)
-        conv7_3 = self.model7(conv6_3)
 
         conv1_2 = self.model1(torch.cat((input_A, input_B, mask_B), dim=1))
         conv2_2 = self.model2(conv1_2[:, :, ::2, ::2])
@@ -181,21 +170,6 @@ class SIGGRAPHGenerator(BaseColor):
         conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2.detach())
         conv10_2 = self.model10(conv10_up)
         out_reg = self.model_out(conv10_2)
-        # else:
-        # out_class = self.model_class(conv8_3.detach())
-
-        # conv9_up = self.model9up(conv8_3) + self.model2short9(conv2_2)
-        # conv9_3 = self.model9(conv9_up)
-        # conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2)
-        # conv10_2 = self.model10(conv10_up)
-        # out_reg = self.model_out(conv10_2)
-
-        # print("83", conv8_3.shape)
-        # print("8up", conv9_up.shape)
-        # print("93", conv9_3.shape)
-        # print("10up", conv10_up.shape)
-        # print("102", conv10_2.shape)
-        # print("outreg", out_reg.shape)
 
         """
         colorencode = self.model_colorencode(conv8_3)
@@ -211,11 +185,10 @@ class SIGGRAPHGenerator(BaseColor):
         return self.unnormalize_ab(class_reg)
         """
         # print("outclass", out_class.shape)
-        if (output):
-            return (out_reg, out_class, conv8_3)
-
-        # Don't unnormalize: compare to normalized ab values
-        return(out_reg, out_class)
+        ans = (out_reg, out_class)
+        if output:
+            self.unnormalize_ab(ans)
+        return ans
 
 def siggraph17(pretrained=True):
     model = SIGGRAPHGenerator()

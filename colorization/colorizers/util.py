@@ -71,22 +71,6 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1); print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
 	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
 
-def postprocess_tens_class(tens_orig_l, out_ab, mode='bilinear'):
-	# tens_orig_l 	1 x 1 x H_orig x W_orig
-	# out_ab 		1 x 2 x H x W
-
-	HW_orig = tens_orig_l.shape[2:]
-	HW = out_ab.shape[2:]; print(HW_orig); print(HW); print(tens_orig_l.shape); print(out_ab.shape)
-
-	# call resize function if needed
-	if(HW_orig[0]!=HW[0] or HW_orig[1]!=HW[1]):
-		out_ab_orig = F.interpolate(out_ab, size=HW_orig, mode='bilinear', align_corners=False); # print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
-	else:
-		out_ab_orig = out_ab; # print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
-
-	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1); print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
-	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
-
 def lab_normalize(lab_rs):
     b = BaseColor()
     # l_rs = (lab[:,[0],:,:]-opt.l_cent)/opt.l_norm

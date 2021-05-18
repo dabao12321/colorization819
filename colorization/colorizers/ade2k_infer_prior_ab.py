@@ -117,6 +117,7 @@ def infer_ab_npy(file_idx, mask_abval_probs, start_time, split_type = "train", \
     if file_idx % 100 == 0:
         print("current file index: ", file_idx)
         print("\tcurrent time elapsed", time.process_time() - start_time)      
+        print(save_filename(file_idx, split=split_type))
 
 if __name__ == "__main__":
     # load frequency distribution for mask vals
@@ -146,7 +147,7 @@ if __name__ == "__main__":
 
     start_time = time.process_time()
 
-    Parallel(n_jobs=8)(delayed(infer_ab_npy)(i, mask_abval_probs, start_time, split_type="val") for i in range(num_files))
+    Parallel(n_jobs=8)(delayed(infer_ab_npy)(i, mask_abval_probs, start_time, split_type="train") for i in range(num_files))
 
     # for file_idx in range(num_files):
     #     # load mask

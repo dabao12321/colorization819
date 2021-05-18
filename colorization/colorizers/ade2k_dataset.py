@@ -15,9 +15,9 @@ def save_filename(index, split="train"):
     file_prefix += "0"*num_zeros + str(index)
 
     if split == "train":
-        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
+        save_path = "../data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
     elif split == "val":
-        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
+        save_path = "../data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
     return save_path
 
 class ADE2kDataset(torch.utils.data.Dataset):

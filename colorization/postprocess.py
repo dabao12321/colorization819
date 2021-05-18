@@ -38,7 +38,7 @@ device = torch.device('cpu')
 class_colorizer_siggraph17.load_state_dict(torch.load("colorizers/model_weights_class0/epoch_9.pt", map_location=device))
 # class_colorizer_siggraph17.cpu()
 
-(reg_output, class_output, conv8_3) = class_colorizer_siggraph17(tens_l_rs, output=True)
+(reg_output, class_output) = class_colorizer_siggraph17(tens_l_rs, output=True)
 print("should be something before this?")
 class_output.cpu()
 print("my input is size", list(class_output.size()))
@@ -57,7 +57,7 @@ loss += criterion(class_output.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(
 print("classification loss =", loss)
 
 out_img_siggraph17 = postprocess_tens(tens_l_orig, reg_output)
-class_img_siggraph17 = postprocess_tens_class(tens_l_orig, class_output)
+# class_img_siggraph17 = postprocess_tens_class(tens_l_orig, class_output)
 
 # print("checkpoint 3")
 
