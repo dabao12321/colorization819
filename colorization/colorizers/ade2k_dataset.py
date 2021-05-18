@@ -67,12 +67,17 @@ class ADE2kDataset(torch.utils.data.Dataset):
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
+    ab_norm = 110.
+    ab_max = 110.
+    ab_quant = 10.
+    A = 2 * ab_max / ab_quant + 1
+
     # print(sys.path)
-    train_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training", \
-                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training", \
+    train_dataset = ADE2kDataset("../data/ADEChallengeData2016/images/training", \
+                            "../data/ADEChallengeData2016/annotations/training", \
                             "train")
-    val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
-                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+    val_dataset = ADE2kDataset("../data/ADEChallengeData2016/images/validation", \
+                            "../data/ADEChallengeData2016/annotations/validation", \
                             "val")
     
     # Params
@@ -88,7 +93,8 @@ if __name__=="__main__":
 
     # Moving model to GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.cuda()
+    if torch.cuda.is_available():
+        model.cuda()
 
     print("checkpt 2")
 
@@ -99,8 +105,9 @@ if __name__=="__main__":
     print("checkpt 3")
 
     # Loss and optimizer
-    criterion = torch.nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterionCE = torch.nn.CrossEntropyLoss()
+    criterionL1 = torch.nn.L1Loss()
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
     print("checkpt 4")
 
@@ -116,20 +123,23 @@ if __name__=="__main__":
         else:
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, masks = data
-
-                # print("masks size after data", list(masks.size()))
+                l_inputs, ab_inputs, masks = data
+                
+                # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-                inputs = torch.squeeze(inputs, 1)
-                labels = torch.squeeze(labels, 1)
+                l_inputs = torch.squeeze(l_inputs, 1)
+                ab_inputs = torch.squeeze(ab_inputs, 1)
                 masks = torch.squeeze(masks, 1)
                 # print("input size after squeeze", list(inputs.size()))
 
-
-                inputs = inputs.to(device)
+                l_inputs = l_inputs.to(device)
                 # print("input size after moving", list(inputs.size()))
-                labels = labels.to(device)
+                ab_inputs = ab_inputs.to(device)
                 masks = masks.to(device)
+
+                # print("lshape", l_inputs.shape)
+                # print("abshape", ab_inputs.shape)
+                ab_rs = ab_inputs[:, :, ::4, ::4]
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -138,8 +148,24 @@ if __name__=="__main__":
                 # forward + backward + optimize
 
                 # print("my input is size", list(inputs.size()))
-                outputs = model(inputs, mask_B=masks)
-                loss = criterion(outputs, labels)
+                (reg_outputs, class_outputs) = model(l_inputs, mask_B = masks)
+                ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
+                class_loss = 0
+                # for i in range(batch):
+                #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
+                #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
+                #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
+                # print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                # print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                if torch.cuda.is_available():
+                    class_loss += criterionCE(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                else:
+                    class_loss += criterionCE(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                ab_inputs = ab_inputs / ab_norm
+                reg_loss = 10 * torch.mean(criterionL1(reg_outputs.type(torch.cuda.FloatTensor),
+                                                              ab_inputs.type(torch.cuda.FloatTensor)))
+                loss = class_loss * 1. + reg_loss
+                print("test class vs reg:", class_loss.item(), reg_loss.item())
                 loss.backward()
                 optimizer.step()
 
@@ -164,21 +190,49 @@ if __name__=="__main__":
         with torch.no_grad():
             for i, data in enumerate(valloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, masks = data
-
+                l_inputs, ab_inputs, masks = data
+                
                 # print("input size after data", list(inputs.size()))
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-                inputs = torch.squeeze(inputs, 1)
-                labels = torch.squeeze(labels, 1)
+                l_inputs = torch.squeeze(l_inputs, 1)
+                ab_inputs = torch.squeeze(ab_inputs, 1)
                 masks = torch.squeeze(masks, 1)
+                # print("input size after squeeze", list(inputs.size()))
 
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                l_inputs = l_inputs.to(device)
+                # print("input size after moving", list(inputs.size()))
+                ab_inputs = ab_inputs.to(device)
                 masks = masks.to(device)
 
-                # only run forward for val
-                outputs = model(inputs, mask_B=masks)
-                loss = criterion(outputs, labels)
+                # print("lshape", l_inputs.shape)
+                # print("abshape", ab_inputs.shape)
+                ab_rs = ab_inputs[:, :, ::4, ::4]
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                # print("input size after opt", list(inputs.size()))
+
+                # forward + backward + optimize
+
+                # print("my input is size", list(inputs.size()))
+                (reg_outputs, class_outputs) = model(l_inputs, mask_B = masks)
+                ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
+                class_loss = 0
+                # for i in range(batch):
+                #     print("shape1", class_outputs.type(torch.FloatTensor)[i, :, :, :].shape)
+                #     print("shape2", ab_enc.type(torch.LongTensor)[i, :, :].shape)
+                #     loss += criterion(class_outputs.type(torch.FloatTensor)[i, :, :, :], ab_enc.type(torch.LongTensor)[i, :, :])
+                # print("shape1", class_outputs.type(torch.FloatTensor).shape)
+                # print("shape2", ab_enc[:, 0, :, :].type(torch.LongTensor).shape)
+                if torch.cuda.is_available():
+                    class_loss += criterionCE(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+                else:
+                    class_loss += criterionCE(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+                ab_inputs = ab_inputs / ab_norm
+                reg_loss = 10 * torch.mean(criterionL1(reg_outputs.type(torch.cuda.FloatTensor),
+                                                              ab_inputs.type(torch.cuda.FloatTensor)))
+                loss = class_loss * 1. + reg_loss
+                print("val class vs reg:", class_loss.item(), reg_loss.item())
 
                 # print statistics
                 running_val_loss += loss.item()

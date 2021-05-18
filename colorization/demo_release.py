@@ -29,8 +29,12 @@ if use_ade2k:
 # default size to process images is 256x256
 # grab L channel in both original ("orig") and resized ("rs") resolutions
 img = load_img(opt.img_path)
+<<<<<<< HEAD
 # (tens_l_orig, tens_l_rs) = preprocess_img(img, HW=(256,256))
 (tens_l_orig, tens_l_rs, img_ab_rs) = preprocess_img(img, HW=(256,256), ade2k=True)
+=======
+(tens_l_orig, tens_l_rs, tens_ab_rs) = preprocess_img(img, HW=(256,256), ade2k=True)
+>>>>>>> hw/class
 # print("img size", img.shape)
 # print("tens_l_orig", list(tens_l_orig.size()))
 # print("tens_l_rs", list(tens_l_rs.size()))
@@ -50,6 +54,7 @@ img_bw = postprocess_tens(tens_l_orig, torch.cat((0*tens_l_orig,0*tens_l_orig),d
 out_img_eccv16 = postprocess_tens(tens_l_orig, colorizer_eccv16(tens_l_rs).cpu())
 # print("checkpoint 3b")
 
+<<<<<<< HEAD
 print("my input is size", list(tens_l_rs.size()))
 model_output = colorizer_siggraph17(tens_l_rs).cpu()
 
@@ -58,6 +63,29 @@ loss = criterion(model_output, img_ab_rs)
 print("LOSS is: ", loss.item())
 
 out_img_siggraph17 = postprocess_tens(tens_l_orig, model_output)
+=======
+(reg_outputs, class_outputs) = colorizer_siggraph17(tens_l_rs)
+# print("my input is size", list(model_output.size()))
+ab_rs = tens_ab_rs[:, :, ::4, ::4]
+ab_norm = 110.
+ab_max = 110.
+ab_quant = 10.
+A = 2 * ab_max / ab_quant + 1
+ab_enc = encode_ab_ind(ab_rs, ab_max, ab_quant, A)
+criterionCE = nn.CrossEntropyLoss()
+criterionL1 = nn.L1Loss()
+class_loss = 0
+if torch.cuda.is_available():
+	class_loss += criterionCE(class_outputs.type(torch.cuda.FloatTensor), ab_enc[:, 0, :, :].type(torch.cuda.LongTensor))
+else:
+	class_loss += criterionCE(class_outputs.type(torch.FloatTensor), ab_enc[:, 0, :, :].type(torch.LongTensor))
+reg_loss = 10 * torch.mean(criterionL1(reg_outputs.type(torch.cuda.FloatTensor),
+												tens_ab_rs.type(torch.cuda.FloatTensor)))
+loss = class_loss * 1. + reg_loss
+print("classification + regression loss =", loss)
+
+out_img_siggraph17 = postprocess_tens(tens_l_orig, reg_outputs)
+>>>>>>> hw/class
 
 # print("checkpoint 3")
 
