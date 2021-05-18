@@ -52,8 +52,8 @@ def save_filename(index, split="train"):
     elif split == "val":
         save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
     return save_path
-
-
+        
+        
 if __name__ == "__main__":
     # load frequency distribution for mask vals
     mask_abval_freqs = None

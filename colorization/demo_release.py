@@ -15,15 +15,21 @@ opt = parser.parse_args()
 
 # load colorizers
 colorizer_eccv16 = eccv16(pretrained=True).eval()
-colorizer_siggraph17 = siggraph17(pretrained=True).eval()
+colorizer_siggraph17 = siggraph17(pretrained=False).eval()
 if(opt.use_gpu):
 	colorizer_eccv16.cuda()
 	colorizer_siggraph17.cuda()
 
+val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
+                            "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+                            "val")
+
+inputs, labels, inferred_ab = val_dataset.__getitem__(0)
+
 use_ade2k = True
-epoch_path = "colorizers/model_weights/epoch_9.pt"
+epoch_path = "colorizers/model_weights/epoch_6.pt"
 if use_ade2k:
-	colorizer_siggraph17.load_state_dict(torch.load(epoch_path))
+	colorizer_siggraph17.load_state_dict(torch.load(epoch_path, map_location=torch.device('cpu')))
 
 # print("checkpoint 1")
 # default size to process images is 256x256
@@ -51,7 +57,7 @@ out_img_eccv16 = postprocess_tens(tens_l_orig, colorizer_eccv16(tens_l_rs).cpu()
 # print("checkpoint 3b")
 
 print("my input is size", list(tens_l_rs.size()))
-model_output = colorizer_siggraph17(tens_l_rs).cpu()
+model_output = colorizer_siggraph17(tens_l_rs, input_B=inferred_ab).cpu()
 
 criterion = torch.nn.MSELoss()
 loss = criterion(model_output, img_ab_rs)
