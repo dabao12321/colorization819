@@ -1,10 +1,11 @@
-
 from PIL import Image
 import numpy as np
 from skimage import color
 import torch
 import torch.nn.functional as F
 from IPython import embed
+
+from .base_color import *
 
 def load_img(img_path):
 	out_np = np.asarray(Image.open(img_path))
@@ -59,13 +60,112 @@ def postprocess_tens(tens_orig_l, out_ab, mode='bilinear'):
 	# out_ab 		1 x 2 x H x W
 
 	HW_orig = tens_orig_l.shape[2:]
-	HW = out_ab.shape[2:]
+	HW = out_ab.shape[2:]; print(HW_orig); print(HW), print(tens_orig_l.shape), print(out_ab.shape)
 
 	# call resize function if needed
-	if(HW_orig[0]!=HW[0] or HW_orig[1]!=HW[1]):
+	if (HW_orig[0]!=HW[0] or HW_orig[1]!=HW[1]):
 		out_ab_orig = F.interpolate(out_ab, size=HW_orig, mode='bilinear')
 	else:
 		out_ab_orig = out_ab
 
-	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1)
+	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1); print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
 	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
+
+def postprocess_tens_class(tens_orig_l, out_ab, mode='bilinear'):
+	# tens_orig_l 	1 x 1 x H_orig x W_orig
+	# out_ab 		1 x 2 x H x W
+
+	HW_orig = tens_orig_l.shape[2:]
+	HW = out_ab.shape[2:]; print(HW_orig); print(HW); print(tens_orig_l.shape); print(out_ab.shape)
+
+	# call resize function if needed
+	if(HW_orig[0]!=HW[0] or HW_orig[1]!=HW[1]):
+		out_ab_orig = F.interpolate(out_ab, size=HW_orig, mode='bilinear', align_corners=False); # print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
+	else:
+		out_ab_orig = out_ab; # print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
+
+	out_lab_orig = torch.cat((tens_orig_l, out_ab_orig), dim=1); print("yes"); print(tens_orig_l.shape); print(out_ab_orig.shape)
+	return color.lab2rgb(out_lab_orig.data.cpu().numpy()[0,...].transpose((1,2,0)))
+
+def lab_normalize(lab_rs):
+    b = BaseColor()
+    # l_rs = (lab[:,[0],:,:]-opt.l_cent)/opt.l_norm
+    l_rs = b.normalize_l(lab_rs[:,[0],:,:])
+    # ab_rs = lab[:,1:,:,:]/opt.ab_norm
+    ab_rs = b.normalize_ab(lab_rs[:,1:,:,:])
+    out = torch.cat((l_rs,ab_rs),dim=1)
+    # if(torch.sum(torch.isnan(out))>0):
+        # print('rgb2lab')
+        # embed()
+    return out
+
+def encode_ab_ind(data_ab, ab_max, ab_quant, A):
+    # Encode ab value into an index
+    # INPUTS
+    #   data_ab   Nx2xHxW \in [-1,1]
+    # OUTPUTS
+    #   data_q    Nx1xHxW \in [0,Q)
+
+    data_ab_rs = torch.round((data_ab + ab_max)/ab_quant) # normalized bin number
+    data_q = data_ab_rs[:,[0],:,:]*A + data_ab_rs[:,[1],:,:]
+    return data_q
+
+"""
+# Layer utility functions
+
+def check_value(inds, val):
+    ''' Check to see if an array is a single element equaling a particular value
+    for pre-processing inputs in a function '''
+    if(np.array(inds).size==1):
+        if(inds==val):
+            return True
+    return False
+
+def flatten_nd_array(pts_nd,axis=1):
+    ''' Flatten an nd array into a 2d array with a certain axis
+    INPUTS
+        pts_nd       N0xN1x...xNd array
+        axis         integer
+    OUTPUTS
+        pts_flt     prod(N \ N_axis) x N_axis array     '''
+    NDIM = pts_nd.ndim
+    SHP = np.array(pts_nd.shape)
+    nax = np.setdiff1d(np.arange(0,NDIM),np.array((axis))) # non axis indices
+    NPTS = np.prod(SHP[nax])
+    axorder = np.concatenate((nax,np.array(axis).flatten()),axis=0)
+    pts_flt = pts_nd.transpose((axorder))
+    pts_flt = pts_flt.reshape(NPTS,SHP[axis])
+    return pts_flt
+
+def unflatten_2d_array(pts_flt,pts_nd,axis=1,squeeze=False):
+    ''' Unflatten a 2d array with a certain axis
+    INPUTS
+        pts_flt     prod(N \ N_axis) x M array
+        pts_nd      N0xN1x...xNd array
+        axis        integer
+        squeeze     bool     if true, M=1, squeeze it out
+    OUTPUTS
+        pts_out     N0xN1x...xNd array        '''
+    NDIM = pts_nd.ndim
+    SHP = np.array(pts_nd.shape)
+    nax = np.setdiff1d(np.arange(0,NDIM),np.array((axis))) # non axis indices
+    NPTS = np.prod(SHP[nax])
+
+    if(squeeze):
+        axorder = nax
+        axorder_rev = np.argsort(axorder)
+        M = pts_flt.shape[1]
+        NEW_SHP = SHP[nax].tolist()
+        pts_out = pts_flt.reshape(NEW_SHP)
+        pts_out = pts_out.transpose(axorder_rev)
+    else:
+        axorder = np.concatenate((nax,np.array(axis).flatten()),axis=0)
+        axorder_rev = np.argsort(axorder)
+        M = pts_flt.shape[1]
+        NEW_SHP = SHP[nax].tolist()
+        NEW_SHP.append(M)
+        pts_out = pts_flt.reshape(NEW_SHP)
+        pts_out = pts_out.transpose(axorder_rev)
+
+    return pts_out
+"""

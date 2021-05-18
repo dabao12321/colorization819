@@ -44,8 +44,8 @@ def get_file_item(index):
     file_prefix = "ADE_train_"
     file_prefix += "0"*num_zeros + str(index)
 
-    img_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/training/" + file_prefix + ".jpg"
-    mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
+    img_path = "../data/ADEChallengeData2016/images/training/" + file_prefix + ".jpg"
+    mask_path = "../data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
 
     img = Image.open(img_path)
     img = img.convert("RGB")

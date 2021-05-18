@@ -31,11 +31,11 @@ def get_file_mask(index, split="train"):
     if split == "train":
         file_prefix = "ADE_train_"
         file_prefix += "0"*num_zeros + str(index)
-        mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
+        mask_path = "../data/ADEChallengeData2016/annotations/training/" + file_prefix + ".png"
     elif split == "val":
         file_prefix = "ADE_val_"
         file_prefix += "0"*num_zeros + str(index)
-        mask_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation/" + file_prefix + ".png"
+        mask_path = "../data/ADEChallengeData2016/annotations/validation/" + file_prefix + ".png"
 
     mask = Image.open(mask_path)
     mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
@@ -49,9 +49,9 @@ def save_filename(index, split="train"):
     file_prefix += "0"*num_zeros + str(index)
 
     if split == "train":
-        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
+        save_path = "../data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
     elif split == "val":
-        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
+        save_path = "../data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
     return save_path
 
 def infer_ab_npy(file_idx, mask_abval_probs, start_time, split_type = "train", \
