@@ -32,7 +32,6 @@ def generate_img(model, dataset, index, file_dir="model_name_imgs/", replace=Fal
     img_bw = postprocess_tens(tens_l_orig, torch.cat((0*tens_l_orig,0*tens_l_orig),dim=1))
     # print("checkpoint 3a")
 
-    # edit this!
     model_output = colorizer_siggraph17(tens_l_rs).cpu()
     # criterion = torch.nn.MSELoss()
     # loss = criterion(model_output, img_ab_rs)
@@ -47,17 +46,15 @@ if __name__ == "__main__":
     # load colorizers
     colorizer_siggraph17 = siggraph17(pretrained=False).eval()
 
-    val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
-                                "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
-                                "val")
+    val_dataset = ADE2kDataset("/Users/amandali/Documents/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
+                                "/Users/amandali/Documents/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+                                "test")
 
     use_ade2k = True
-    epoch_path = "colorizers/model_weights_nopretrain/epoch_9.pt"
+    epoch_path = "model_weights_trained/epoch_9.pt"
     if use_ade2k:
         colorizer_siggraph17.load_state_dict(torch.load(epoch_path, map_location=torch.device('cpu')))
 
-
-    # generate_img(colorizer_siggraph17, val_dataset, 0, file_dir="model_output_imgs/")
 
     # randomly generated 102 image indices
     sample_ids = [0, 2, 3, 5, 1441, 807, 796, 1771, 112, \
@@ -78,37 +75,4 @@ if __name__ == "__main__":
 
     Parallel(n_jobs=4)(delayed(generate_img)(colorizer_siggraph17, val_dataset, i, file_dir="baseline_model_imgs/") for i in sample_ids)
 
-    # inputs, labels, masks = val_dataset.__getitem__(2)
-
-    # # print("checkpoint 1")
-    # # default size to process images is 256x256
-    # # grab L channel in both original ("orig") and resized ("rs") resolutions
-    # img = load_img(opt.img_path)
-    # # (tens_l_orig, tens_l_rs) = preprocess_img(img, HW=(256,256))
-    # (tens_l_orig, tens_l_rs, img_ab_rs) = preprocess_img(img, HW=(256,256), ade2k=True)
-    # # print("img size", img.shape)
-    # # print("tens_l_orig", list(tens_l_orig.size()))
-    # # print("tens_l_rs", list(tens_l_rs.size()))
-    # if(opt.use_gpu):
-    #     print("gpu")
-    #     tens_l_rs = tens_l_rs.cuda()
-
-    # # colorizer outputs 256x256 ab map
-    # # resize and concatenate to original L channel
-    # # print("checkpoint 2")
-
-    # img_bw = postprocess_tens(tens_l_orig, torch.cat((0*tens_l_orig,0*tens_l_orig),dim=1))
-    # # print("checkpoint 3a")
-
-    # model_output = colorizer_siggraph17(tens_l_rs, mask_B=masks).cpu()
-    # criterion = torch.nn.MSELoss()
-    # loss = criterion(model_output, img_ab_rs)
-    # print("LOSS is: ", loss.item())
-
-    # out_img_siggraph17 = postprocess_tens(tens_l_orig, model_output)
-
-    # # print("checkpoint 3")
-
-    # plt.imsave('%s_siggraph17.png'%opt.save_prefix, out_img_siggraph17)
-
-    # print("checkpoint 4")
+    

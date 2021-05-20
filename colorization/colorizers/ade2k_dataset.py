@@ -18,6 +18,8 @@ def save_filename(index, split="train"):
         save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/training/" + file_prefix + ".npy"
     elif split == "val":
         save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/validation/" + file_prefix + ".npy"
+    elif split == "test":
+        save_path = "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/inferred_ab/testing/" + file_prefix + ".npy"
     return save_path
 
 class ADE2kDataset(torch.utils.data.Dataset):
@@ -35,10 +37,12 @@ class ADE2kDataset(torch.utils.data.Dataset):
             return 20210
         elif self.split == "val":
             return 2000
+        elif self.split == "test":
+            return 3489
         else:
             return 0
 
-    def __getitem__(self, index, inferred_ab=True):
+    def __getitem__(self, index, inferred_ab=False, output_mask=False):
         """
         Convert index (0 indexed) into filename (1 indexed)
         """
@@ -47,6 +51,8 @@ class ADE2kDataset(torch.utils.data.Dataset):
             file_prefix += "train_"
         elif self.split == "val":
             file_prefix += "val_"
+        elif self.split == "test":
+            file_prefix += "test_"
         else:
             print("invalid split")
             return
@@ -64,10 +70,15 @@ class ADE2kDataset(torch.utils.data.Dataset):
 
         img = Image.open(img_path)
         img = img.convert("RGB")
-        mask = Image.open(mask_path)
+        mask_rs = None
+        if self.split == "test":
+            mask = None
+        else:
+            mask = Image.open(mask_path)
+            mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
 
         img_l_orig, img_l_rs, img_ab_rs = preprocess_img(np.asarray(img), HW=(256,256), resample=Image.NEAREST, ade2k=True)
-        mask_rs = mask.resize((256, 256), resample=Image.NEAREST)
+        
 
         # need to output 3 things (2 things for now)
         # 1. ade2k image bw resized
@@ -77,9 +88,16 @@ class ADE2kDataset(torch.utils.data.Dataset):
         # for inferred ab values from probability distribution
         # include the 1 x 2 x 256 x 256 inferred image ab tensor
 
-        if inferred_ab:
+        if inferred_ab and output_mask:
+            inferred_ab_np = np.load(save_filename(index - 1, split=self.split))
+            mask_rs = np.asarray([[np.asarray(mask_rs)]])
+            return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np), torch.Tensor(mask_rs)
+        elif inferred_ab:
             inferred_ab_np = np.load(save_filename(index - 1, split=self.split))
             return img_l_rs, img_ab_rs, torch.Tensor(inferred_ab_np)
+        elif output_mask:
+            mask_rs = np.asarray([[np.asarray(mask_rs)]])
+            return img_l_rs, img_ab_rs, torch.Tensor(mask_rs)
         return img_l_rs, img_ab_rs
 
 if __name__=="__main__":
@@ -90,6 +108,8 @@ if __name__=="__main__":
     val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
                             "/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
                             "val")
+    test_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/test", \
+                            "", "test")
     
     # Params
     model_dir = "model_weights/"
@@ -97,6 +117,7 @@ if __name__=="__main__":
     learning_rate = 0.001
     batch = 16
     use_pretrained = False
+    run_test = False
 
     model = siggraph17(pretrained=use_pretrained)
 
@@ -104,13 +125,16 @@ if __name__=="__main__":
 
     # Moving model to GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.cuda()
+    print("Running on device", device)
+    model.to(device)
 
     print("checkpt 2")
 
     # Dataset to dataloader
     trainloader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size = batch, pin_memory=True)
     valloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size = batch, pin_memory=True)
+    if run_test:
+        testloader = torch.utils.data.DataLoader(test_dataset, shuffle=True, batch_size = batch, pin_memory=True)
 
     print("checkpt 3")
 
@@ -125,6 +149,7 @@ if __name__=="__main__":
         print("Starting epoch", epoch)
         running_loss = 0.0
         epoch_loss = 0.0
+        val_loss = 0.0
         epoch_path = model_dir + "epoch_" + str(epoch) + ".pt"
         model.train()
         if os.path.exists(epoch_path):
@@ -132,32 +157,25 @@ if __name__=="__main__":
             model.load_state_dict(torch.load(epoch_path))
         else:
             for i, data in enumerate(trainloader, 0):
-                # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, inferred_ab = data
-
-                # print("inferred size", list(inferred_ab.size()))
-                # print("input size after data", list(inputs.size()))
+                inputs, labels = data
+                # inputs, labels, inferred_ab, masks = data
 
                 # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
                 inputs = torch.squeeze(inputs, 1)
                 labels = torch.squeeze(labels, 1)
-                inferred_ab = torch.squeeze(inferred_ab, 1)
-                # print("input size after squeeze", list(inputs.size()))
-
+                # inferred_ab = torch.squeeze(inferred_ab, 1)
+                # masks = torch.squeeze(masks, 1)
 
                 inputs = inputs.to(device)
-                # print("input size after moving", list(inputs.size()))
                 labels = labels.to(device)
-                inferred_ab = inferred_ab.to(device)
+                # inferred_ab = inferred_ab.to(device)
+                # masks = masks.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
-                # print("input size after opt", list(inputs.size()))
 
-                # forward + backward + optimize
-
-                # print("my input is size", list(inputs.size()))
-                outputs = model(inputs, input_B = inferred_ab)
+                outputs = model(inputs)
+                # outputs = model(inputs, input_B = inferred_ab, mask_B=masks)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
@@ -170,45 +188,42 @@ if __name__=="__main__":
                         (epoch + 1, i*batch, running_loss / 6))
                     running_loss = 0.0
 
-                # testing break!
-                # sys.exit()
-
             print("Epoch", epoch, "complete, saving to...", epoch_path)
             torch.save(model.state_dict(), epoch_path)
             epoch_loss_avg = epoch_loss/(20210/batch)
             print("Saved epoch", epoch, "avg epoch loss = ", epoch_loss_avg)
 
-        print("Running validation...")
-        model.eval()
-        val_loss = 0.0
-        running_val_loss = 0.0
-        with torch.no_grad():
-            for i, data in enumerate(valloader, 0):
-                # get the inputs; data is a list of [inputs, labels]
-                inputs, labels, inferred_ab = data
+            print("Running validation...")
+            model.eval()
+            running_val_loss = 0.0
+            with torch.no_grad():
+                for i, data in enumerate(valloader, 0):
+                    inputs, labels = data
+                    # inputs, labels, inferred_ab, masks = data
 
-                # print("input size after data", list(inputs.size()))
-                # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
-                inputs = torch.squeeze(inputs, 1)
-                labels = torch.squeeze(labels, 1)
-                inferred_ab = torch.squeeze(inferred_ab, 1)
+                    # print("input size after data", list(inputs.size()))
+                    # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+                    inputs = torch.squeeze(inputs, 1)
+                    labels = torch.squeeze(labels, 1)
+                    # inferred_ab = torch.squeeze(inferred_ab, 1)
+                    # masks = torch.squeeze(masks, 1)
 
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-                inferred_ab = inferred_ab.to(device)
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
+                    # inferred_ab = inferred_ab.to(device)
+                    # masks = masks.to(device)
 
-                # only run forward for val
-                outputs = model(inputs, input_B = inferred_ab)
-                loss = criterion(outputs, labels)
+                    outputs = model(inputs)
+                    # outputs = model(inputs, input_B=inferred_ab, mask_B=masks)
+                    loss = criterion(outputs, labels)
 
-                # print statistics
-                running_val_loss += loss.item()
-                val_loss += loss.item()
-                if i % 6 == 0:    # print every 6 batches of batch = 16, 96 samples
-                    print('\t[%d, %5d] loss: %.3f' %
-                        (epoch + 1, i*batch, running_val_loss / 6))
-                    running_val_loss = 0.0
-
+                    # print statistics
+                    running_val_loss += loss.item()
+                    val_loss += loss.item()
+                    if i % 6 == 0:    # print every 6 batches of batch = 16, 96 samples
+                        print('\t[%d, %5d] loss: %.3f' %
+                            (epoch + 1, i*batch, running_val_loss / 6))
+                        running_val_loss = 0.0
 
         print("Epoch", epoch, "validation loss:", val_loss/(2000/batch))
         with open("model_weights/val_loss_" + str(epoch) +".txt", "w") as f:
@@ -219,6 +234,42 @@ if __name__=="__main__":
 
 
     print('Finished Training')
-   
+
+    if run_test:
+        test_loss = 0.0
+        running_test_loss = 0.0
+        with torch.no_grad():
+            for i, data in enumerate(testloader, 0):
+                inputs, labels = data
+                # inputs, labels, inferred_ab, masks = data
+
+                # print("input size after data", list(inputs.size()))
+                # flattening input and label due to batch size = 1 (dataloader adds dim for batch)
+                inputs = torch.squeeze(inputs, 1)
+                labels = torch.squeeze(labels, 1)
+                # inferred_ab = torch.squeeze(inferred_ab, 1)
+                # masks = torch.squeeze(masks, 1)
+
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                # inferred_ab = inferred_ab.to(device)
+                # masks = masks.to(device)
+
+                outputs = model(inputs)
+                # outputs = model(inputs, input_B=inferred_ab, mask_B=masks)
+                loss = criterion(outputs, labels)
+
+                # print statistics
+                running_test_loss += loss.item()
+                test_loss += loss.item()
+                if i % 6 == 0:    # print every 6 batches of batch = 16, 96 samples
+                    print('\t[%d, %5d] loss: %.3f' %
+                        (epoch + 1, i*batch, running_test_loss / 6))
+                    running_test_loss = 0.0
+
+        print("Finished testing, loss:", test_loss/(3489/batch))
+        with open("model_weights/test_loss.txt", "w") as f:
+            f.write("Testing loss: " + str(test_loss/(3489/batch)))
+            f.close()
 
         
