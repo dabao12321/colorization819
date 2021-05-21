@@ -46,8 +46,8 @@ if __name__ == "__main__":
     # load colorizers
     colorizer_siggraph17 = siggraph17(pretrained=False).eval()
 
-    val_dataset = ADE2kDataset("/Users/amandali/Documents/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
-                                "/Users/amandali/Documents/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
+    val_dataset = ADE2kDataset("/home/ec2-user/colorization819/colorization/data/ADEChallengeData2016/images/validation", \
+                                "/home/ec2-user/Documents/colorization819/colorization/data/ADEChallengeData2016/annotations/validation", \
                                 "test")
 
     use_ade2k = True
@@ -67,12 +67,10 @@ if __name__ == "__main__":
         1968, 1530, 39, 847, 979, 1786, 852, 1594, 616, 1083, \
         1730, 1664, 1267, 1644, 275, 338, 331, 294, 1272, 871, 607, \
         26, 1165, 1834, 1058, 1985, 302, 139]
-    
+
     sample_ids.sort()
-    
+
     print(len(sample_ids))
     print(len(set(sample_ids)))
 
     Parallel(n_jobs=4)(delayed(generate_img)(colorizer_siggraph17, val_dataset, i, file_dir="baseline_model_imgs/") for i in sample_ids)
-
-    
